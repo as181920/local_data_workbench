@@ -1,0 +1,31 @@
+stages:
+  - verify
+
+default:
+  interruptible: true
+  cache:
+    key:
+      files:
+        - package-lock.json
+    paths:
+      - .npm/
+    policy: pull-push
+
+variables:
+  NPM_CONFIG_CACHE: "$CI_PROJECT_DIR/.npm"
+  NPM_CONFIG_AUDIT: "false"
+  NPM_CONFIG_FUND: "false"
+
+code_quality:
+  stage: verify
+  timeout: 20 minutes
+  before_script:
+    - node --version
+    - npm --version
+    - npm ci --prefer-offline
+  script:
+    # 仅执行静态代码校验和自动化测试，任一命令失败都会阻止流水线通过。
+    # 不执行应用构建或 Electron 打包。
+    - npm run lint
+    - npm run typecheck
+    - npm test
