@@ -1,0 +1,17 @@
+node_modules/
+dist/
+dist-electron/
+release/
+.build/
+coverage/
+*.log
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+.DS_Store
+Thumbs.db
+.env
+.env.*
+!.env.example
+.vite/
+.playwright-mcp/

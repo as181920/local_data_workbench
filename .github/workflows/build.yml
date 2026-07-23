@@ -1,0 +1,52 @@
+name: Quality and desktop builds
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+
+  package:
+    needs: quality
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            command: npm run dist:win
+            verify: release/win-unpacked
+            artifact: windows-x64
+            path: release/*.exe
+          - os: ubuntu-latest
+            command: npm run dist:linux
+            verify: release/linux-unpacked
+            artifact: linux-x64
+            path: release/*.AppImage
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: ${{ matrix.command }}
+      - run: node scripts/verify-package.mjs ${{ matrix.verify }}
+      - uses: actions/upload-artifact@v6
+        with:
+          name: local-data-workbench-${{ matrix.artifact }}
+          path: ${{ matrix.path }}
+          if-no-files-found: error
