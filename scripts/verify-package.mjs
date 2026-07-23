@@ -10,7 +10,7 @@ const entries = new Set(listPackage(asarPath).map((entry) => entry.replace(/^[/\
 const required = [
   "dist/index.html",
   "dist-electron/electron/main.js",
-  "dist-electron/electron/preload.js",
+  "dist-electron/electron/preload.cjs",
   "dist-electron/electron/workers/importWorker.js",
   "dist-electron/services/core/debug.js",
   "dist-electron/services/database/storage.js",

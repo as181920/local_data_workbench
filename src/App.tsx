@@ -37,6 +37,27 @@ import type {
 const EMPTY_RESULT: QueryResult = { rows: [], total: 0, page: 1, pageSize: 50 };
 
 export default function App() {
+  if (!window.workbench) return <RuntimeUnavailable />;
+  return <WorkbenchApp />;
+}
+
+function RuntimeUnavailable() {
+  return (
+    <div className="runtime-error">
+      <div className="runtime-error-card">
+        <span className="runtime-error-icon"><CircleAlert size={28} /></span>
+        <div>
+          <p className="eyebrow">应用组件未就绪</p>
+          <h1>本地数据工作台无法连接桌面服务</h1>
+          <p>请重新启动应用；如果问题仍然存在，请使用 Debug 日志启动并提供日志文件。</p>
+          <code>LOCAL_DATA_WORKBENCH_DEBUG=1</code>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WorkbenchApp() {
   const [templates, setTemplates] = useState<TemplateSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string>();
   const [creating, setCreating] = useState(false);
@@ -143,22 +164,14 @@ function TemplateHome({
 }) {
   return (
     <div className="home">
-      <section className="hero">
+      <div className="page-heading">
         <div>
-          <p className="eyebrow">独立模板 · 本地处理 · 全程可追溯</p>
-          <h1>把分散的 Excel，变成清晰可查的数据空间</h1>
-          <p className="hero-copy">每项业务使用独立数据库。合并多个文件、识别重复记录、追踪内容版本，并用多个关键词快速筛选。</p>
-        </div>
-        <button className="button primary large" onClick={onCreate}>
-          <FilePlus2 size={19} /> 新建数据模板
-        </button>
-      </section>
-
-      <div className="section-heading">
-        <div>
-          <h2>数据模板</h2>
+          <h1>数据模板</h1>
           <p>{templates.length ? `共 ${templates.length} 个独立业务空间` : "从一个 Excel 文件创建第一个业务空间"}</p>
         </div>
+        <button className="button primary" onClick={onCreate}>
+          <FilePlus2 size={19} /> 新建数据模板
+        </button>
       </div>
 
       {loading ? (
@@ -215,6 +228,7 @@ function CreateTemplateDialog({
   onError: (message: string) => void;
 }) {
   const [preview, setPreview] = useState<WorkbookPreview>();
+  const [filePaths, setFilePaths] = useState<string[]>([]);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [dedupe, setDedupe] = useState<number[]>([]);
@@ -225,9 +239,10 @@ function CreateTemplateDialog({
     try {
       const result = await window.workbench.templates.preview();
       if ("cancelled" in result) return;
-      setPreview(result);
-      setName(result.fileName.replace(/\.[^.]+$/, ""));
-      const suggested = result.columns
+      setPreview(result.preview);
+      setFilePaths(result.filePaths);
+      setName(result.preview.fileName.replace(/\.[^.]+$/, ""));
+      const suggested = result.preview.columns
         .filter((column) => /(^|[^a-z])(id|编号|单号|主键)([^a-z]|$)/i.test(column.name))
         .slice(0, 1)
         .map((column) => column.index);
@@ -254,7 +269,7 @@ function CreateTemplateDialog({
   };
 
   const submit = async () => {
-    if (!preview || !name.trim()) return;
+    if (!preview || !filePaths.length || !name.trim()) return;
     setBusy(true);
     try {
       const input: CreateTemplateInput = {
@@ -264,7 +279,7 @@ function CreateTemplateDialog({
         dedupeColumnIndexes: dedupe
       };
       const template = await window.workbench.templates.create(input);
-      await window.workbench.imports.start({ templateId: template.id, filePaths: [preview.filePath] });
+      await window.workbench.imports.start({ templateId: template.id, filePaths });
       onCreated(template);
     } catch (reason) {
       onError(getMessage(reason));
@@ -286,8 +301,8 @@ function CreateTemplateDialog({
         {!preview ? (
           <button className="file-drop" onClick={choose} disabled={busy}>
             {busy ? <LoaderCircle className="spin" size={34} /> : <FolderInput size={34} />}
-            <strong>选择一个 Excel 样例文件</strong>
-            <span>支持 xlsx、xlsm、xls、xlsb、ods 和 csv</span>
+            <strong>选择一个或多个 Excel 文件</strong>
+            <span>第一份文件用于创建模板，其余文件会在字段校验通过后一起导入</span>
           </button>
         ) : (
           <>
@@ -337,7 +352,12 @@ function CreateTemplateDialog({
 
             <div className="preview-box">
               <div className="subheading">
-                <div><h3>数据预览</h3><p>识别到第 {preview.headerRow} 行表头，共 {preview.columns.length} 列</p></div>
+                <div>
+                  <h3>数据预览</h3>
+                  <p>
+                    已选择 {filePaths.length} 个文件 · 以“{preview.fileName}”识别第 {preview.headerRow} 行表头，共 {preview.columns.length} 列
+                  </p>
+                </div>
                 <button className="text-button" onClick={choose}>更换文件</button>
               </div>
               <div className="mini-table-wrap">
@@ -356,9 +376,9 @@ function CreateTemplateDialog({
 
         <div className="modal-actions">
           <button className="button ghost" onClick={onClose}>取消</button>
-          <button className="button primary" disabled={!preview || !name.trim() || busy} onClick={submit}>
+          <button className="button primary" disabled={!preview || !filePaths.length || !name.trim() || busy} onClick={submit}>
             {busy ? <LoaderCircle className="spin" size={17} /> : <Plus size={17} />}
-            创建并导入
+            创建并导入{filePaths.length > 1 ? ` ${filePaths.length} 个文件` : ""}
           </button>
         </div>
       </div>

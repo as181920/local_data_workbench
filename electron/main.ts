@@ -45,10 +45,28 @@ function createWindow(): void {
     title: "本地数据工作台",
     backgroundColor: "#f4f5f7",
     webPreferences: {
-      preload: path.join(__dirname, "preload.js"),
+      preload: path.join(__dirname, "preload.cjs"),
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true
+    }
+  });
+  mainWindow.webContents.on("preload-error", (_event, preloadPath, error) => {
+    debugError("renderer", "preload failed", error, { preloadPath });
+  });
+  mainWindow.webContents.on("render-process-gone", (_event, details) => {
+    debugLog("renderer", "render process gone", details);
+  });
+  mainWindow.webContents.on("did-fail-load", (_event, code, description, url) => {
+    debugLog("renderer", "page failed to load", { code, description, url });
+  });
+  mainWindow.webContents.on("console-message", (details) => {
+    if (details.level === "warning" || details.level === "error") {
+      debugLog("renderer-console", details.message, {
+        level: details.level,
+        line: details.lineNumber,
+        sourceId: details.sourceId
+      });
     }
   });
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
@@ -105,12 +123,15 @@ function registerIpc(): void {
   handle("templates:list", () => listTemplates(storageRoot));
   handle("templates:preview", async () => {
     const result = await dialog.showOpenDialog({
-      title: "选择 Excel 文件",
-      properties: ["openFile"],
+      title: "选择一个或多个 Excel 文件",
+      properties: ["openFile", "multiSelections"],
       filters: [{ name: "表格文件", extensions: ["xlsx", "xlsm", "xls", "xlsb", "ods", "csv"] }]
     });
     if (result.canceled || !result.filePaths[0]) return { cancelled: true };
-    return previewWorkbook(result.filePaths[0]);
+    return {
+      preview: previewWorkbook(result.filePaths[0]),
+      filePaths: result.filePaths
+    };
   });
   handle("templates:previewSheet", (_event, payload: unknown) => {
     const parsed = payload as { filePath: string; sheetName: string };

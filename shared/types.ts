@@ -39,6 +39,11 @@ export interface WorkbookPreview {
   rows: string[][];
 }
 
+export interface WorkbookSelection {
+  preview: WorkbookPreview;
+  filePaths: string[];
+}
+
 export interface CreateTemplateInput {
   name: string;
   description?: string;
@@ -168,7 +173,7 @@ export interface WorkbenchApi {
   };
   templates: {
     list(): Promise<TemplateSummary[]>;
-    preview(): Promise<WorkbookPreview | { cancelled: true }>;
+    preview(): Promise<WorkbookSelection | { cancelled: true }>;
     previewSheet(filePath: string, sheetName: string): Promise<WorkbookPreview>;
     create(input: CreateTemplateInput): Promise<TemplateSummary>;
     remove(templateId: string): Promise<void>;

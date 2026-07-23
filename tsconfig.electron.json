@@ -11,6 +11,6 @@
     "sourceMap": true,
     "types": ["node", "electron"]
   },
-  "include": ["electron/**/*.ts", "services/**/*.ts", "shared/**/*.ts"],
+  "include": ["electron/**/*.ts", "electron/**/*.cts", "services/**/*.ts", "shared/**/*.ts"],
   "exclude": ["tests", "node_modules", "dist", "release"]
 }

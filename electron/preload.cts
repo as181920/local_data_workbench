@@ -8,7 +8,7 @@ import type {
   WorkbenchApi
 } from "../shared/types.js";
 
-const invoke = <T>(channel: string, payload?: unknown): Promise<T> => ipcRenderer.invoke(channel, payload);
+const invoke = <T,>(channel: string, payload?: unknown): Promise<T> => ipcRenderer.invoke(channel, payload);
 
 const api: WorkbenchApi = {
   appVersion: () => invoke("app:version"),

@@ -1,4 +1,5 @@
 import { spawn, spawnSync } from "node:child_process";
+import { rmSync } from "node:fs";
 import electronPath from "electron";
 import { parseDevOptions } from "./dev-options.mjs";
 
@@ -10,6 +11,7 @@ try {
   process.exit(2);
 }
 
+rmSync("dist-electron", { recursive: true, force: true });
 const compile = spawnSync("node_modules/.bin/tsc", ["-p", "tsconfig.electron.json"], {
   stdio: "inherit",
   shell: process.platform === "win32"

@@ -122,9 +122,11 @@ test("accepts reordered unique headers and rejects changed schema", async () => 
   try {
     const baseFile = join(root, "base.xlsx");
     const reorderedFile = join(root, "reordered.xlsx");
+    const nextValidFile = join(root, "next-valid.xlsx");
     const changedFile = join(root, "changed.xlsx");
     writeWorkbook(baseFile, [["1", "内容一", "A"]]);
     writeWorkbook(reorderedFile, [["内容二", "2", "B"]], ["事件内容", "主键id", "类别"]);
+    writeWorkbook(nextValidFile, [["4", "本批不应写入", "C"]]);
     writeWorkbook(changedFile, [["3", "内容三", "X"]], ["主键id", "事件内容", "新增字段"]);
     const preview = previewWorkbook(baseFile);
     const template = createTemplate(root, {
@@ -146,10 +148,15 @@ test("accepts reordered unique headers and rejects changed schema", async () => 
       importWorkbooks({
         storageRoot: root,
         template,
-        filePaths: [changedFile],
+        filePaths: [nextValidFile, changedFile],
         jobId: "changed-job"
       }),
       /字段不一致/
+    );
+    assert.equal(
+      queryRecords(root, { templateId: template.id, pageSize: 50 }).total,
+      2,
+      "all files must pass schema validation before any row in the batch is written"
     );
   } finally {
     rmSync(root, { recursive: true, force: true });
