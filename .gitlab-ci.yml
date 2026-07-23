@@ -21,6 +21,7 @@ code_quality:
   stage: verify
   timeout: 20 minutes
   before_script:
+    - pwd
     - |
       if ! command -v nvm >/dev/null 2>&1; then
         if [ -z "${NVM_DIR:-}" ] || [ ! -s "${NVM_DIR}/nvm.sh" ]; then
