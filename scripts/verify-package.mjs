@@ -1,6 +1,6 @@
 import { accessSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { listPackage, statFile } from "@electron/asar";
+import { listPackage } from "@electron/asar";
 
 const packageRoot = resolve(process.argv[2] || "release/linux-unpacked");
 const asarPath = join(packageRoot, "resources", "app.asar");
@@ -26,8 +26,10 @@ for (const entry of required) {
 }
 
 const nativeEntry = "node_modules/better-sqlite3/build/Release/better_sqlite3.node";
-if (!statFile(asarPath, nativeEntry).unpacked) {
-  throw new Error(`${nativeEntry} must be unpacked from ASAR.`);
+const unpackedNativePath = join(`${asarPath}.unpacked`, ...nativeEntry.split("/"));
+try {
+  accessSync(unpackedNativePath);
+} catch {
+  throw new Error(`Packaged native module is missing from ASAR unpacked directory: ${unpackedNativePath}`);
 }
-accessSync(join(`${asarPath}.unpacked`, ...nativeEntry.split("/")));
 console.log(`Verified packaged app at ${packageRoot}`);
