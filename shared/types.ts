@@ -95,6 +95,7 @@ export interface DataFilter {
 export interface QueryRequest {
   templateId: string;
   keyword?: string;
+  keywordMode?: "or" | "and";
   filters?: DataFilter[];
   mergedOnly?: boolean;
   conflictOnly?: boolean;
@@ -122,6 +123,10 @@ export interface QueryResult {
   page: number;
   pageSize: number;
 }
+
+export type ExportResult =
+  | { cancelled: true }
+  | { filePath: string; exportedCount: number };
 
 export interface RecordVersion {
   id: number;
@@ -176,6 +181,7 @@ export interface WorkbenchApi {
     preview(): Promise<WorkbookSelection | { cancelled: true }>;
     previewSheet(filePath: string, sheetName: string): Promise<WorkbookPreview>;
     create(input: CreateTemplateInput): Promise<TemplateSummary>;
+    rename(templateId: string, name: string): Promise<TemplateSummary>;
     remove(templateId: string): Promise<void>;
     pickImportFiles(): Promise<string[]>;
   };
@@ -188,6 +194,6 @@ export interface WorkbenchApi {
   data: {
     query(request: QueryRequest): Promise<QueryResult>;
     detail(templateId: string, recordId: number): Promise<RecordDetail>;
-    export(request: QueryRequest): Promise<{ cancelled?: true; filePath?: string }>;
+    export(request: QueryRequest): Promise<ExportResult>;
   };
 }

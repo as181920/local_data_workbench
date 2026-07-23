@@ -21,6 +21,7 @@ const api: WorkbenchApi = {
     previewSheet: (filePath: string, sheetName: string): Promise<WorkbookPreview> =>
       invoke("templates:previewSheet", { filePath, sheetName }),
     create: (input: CreateTemplateInput) => invoke("templates:create", input),
+    rename: (templateId: string, name: string) => invoke("templates:rename", { templateId, name }),
     remove: (templateId: string) => invoke("templates:remove", { templateId }),
     pickImportFiles: () => invoke("templates:pickImportFiles")
   },

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
+  Check,
   ChevronLeft,
   ChevronRight,
   CircleAlert,
@@ -14,6 +15,7 @@ import {
   Layers3,
   LoaderCircle,
   Plus,
+  Pencil,
   RefreshCw,
   Search,
   ShieldCheck,
@@ -401,6 +403,7 @@ function TemplateWorkspace({
 }) {
   const [keywordInput, setKeywordInput] = useState("");
   const [keyword, setKeyword] = useState("");
+  const [keywordMode, setKeywordMode] = useState<"or" | "and">("or");
   const [filters, setFilters] = useState<DataFilter[]>([]);
   const [mergedOnly, setMergedOnly] = useState(false);
   const [conflictOnly, setConflictOnly] = useState(false);
@@ -410,16 +413,22 @@ function TemplateWorkspace({
   const [detail, setDetail] = useState<RecordDetail>();
   const [historyOpen, setHistoryOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState(template.name);
+  const [savingName, setSavingName] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportResult, setExportResult] = useState<{ filePath: string; exportedCount: number }>();
 
   const request = useMemo<QueryRequest>(() => ({
     templateId: template.id,
     keyword,
+    keywordMode,
     filters,
     mergedOnly,
     conflictOnly,
     page,
     pageSize: 50
-  }), [template.id, keyword, filters, mergedOnly, conflictOnly, page]);
+  }), [template.id, keyword, keywordMode, filters, mergedOnly, conflictOnly, page]);
 
   const query = useCallback(async () => {
     if (!template.dataFileExists) {
@@ -454,6 +463,25 @@ function TemplateWorkspace({
     }
   };
 
+  const saveName = async () => {
+    const name = nameDraft.trim();
+    if (!name || name === template.name) {
+      setNameDraft(template.name);
+      setEditingName(false);
+      return;
+    }
+    setSavingName(true);
+    try {
+      await window.workbench.templates.rename(template.id, name);
+      await onChanged();
+      setEditingName(false);
+    } catch (reason) {
+      onError(getMessage(reason));
+    } finally {
+      setSavingName(false);
+    }
+  };
+
   const remove = async () => {
     if (!window.confirm(`确定删除模板“${template.name}”及其全部数据吗？此操作无法恢复。`)) return;
     try {
@@ -466,10 +494,15 @@ function TemplateWorkspace({
   };
 
   const exportData = async () => {
+    setExporting(true);
+    setExportResult(undefined);
     try {
-      await window.workbench.data.export({ ...request, page: 1 });
+      const exported = await window.workbench.data.export({ ...request, page: 1 });
+      if (!("cancelled" in exported)) setExportResult(exported);
     } catch (reason) {
       onError(getMessage(reason));
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -480,14 +513,60 @@ function TemplateWorkspace({
           <button className="icon-button back" onClick={onBack}><ArrowLeft /></button>
           <span className="database-icon"><Database size={22} /></span>
           <div>
-            <h1>{template.name}</h1>
+            {editingName ? (
+              <form className="template-name-editor" onSubmit={(event) => {
+                event.preventDefault();
+                void saveName();
+              }}>
+                <input
+                  value={nameDraft}
+                  onChange={(event) => setNameDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") {
+                      setNameDraft(template.name);
+                      setEditingName(false);
+                    }
+                  }}
+                  maxLength={100}
+                  autoFocus
+                />
+                <button className="title-action save" type="submit" title="保存名称" disabled={savingName}>
+                  {savingName ? <LoaderCircle className="spin" size={15} /> : <Check size={16} />}
+                </button>
+                <button
+                  className="title-action"
+                  type="button"
+                  title="取消修改"
+                  onClick={() => {
+                    setNameDraft(template.name);
+                    setEditingName(false);
+                  }}
+                  disabled={savingName}
+                >
+                  <X size={16} />
+                </button>
+              </form>
+            ) : (
+              <div className="template-name-row">
+                <h1>{template.name}</h1>
+                <button
+                  className="title-action"
+                  title="修改模板名称"
+                  onClick={() => {
+                    setNameDraft(template.name);
+                    setEditingName(true);
+                  }}
+                >
+                  <Pencil size={14} />
+                </button>
+              </div>
+            )}
             <p>{template.description || `${template.sheetName} · ${template.columns.length} 个字段`}</p>
             <div className="data-file-hint" title={template.dataFilePath}>数据文件：{template.dataFilePath}</div>
           </div>
         </div>
         <div className="toolbar">
           <button className="button ghost" onClick={() => setHistoryOpen(true)}><History size={17} /> 导入历史</button>
-          <button className="button ghost" onClick={exportData}><Download size={17} /> 导出结果</button>
           <button className="button primary" onClick={startImport} disabled={Boolean(progress && !isFinished(progress))}>
             <FolderInput size={17} /> 导入 Excel
           </button>
@@ -530,6 +609,16 @@ function TemplateWorkspace({
             />
             {keywordInput && <button type="button" onClick={() => { setKeywordInput(""); setKeyword(""); }}><X size={16} /></button>}
           </div>
+          <label className="keyword-mode">
+            <span>多词匹配</span>
+            <select value={keywordMode} onChange={(event) => {
+              setKeywordMode(event.target.value as "or" | "and");
+              setPage(1);
+            }}>
+              <option value="or">任意词（OR）</option>
+              <option value="and">全部词（AND）</option>
+            </select>
+          </label>
           <button className="button dark" type="submit">搜索</button>
           <label className="check-toggle">
             <input type="checkbox" checked={mergedOnly} onChange={(event) => { setMergedOnly(event.target.checked); setPage(1); }} />
@@ -540,7 +629,9 @@ function TemplateWorkspace({
             <span>仅看冲突</span>
           </label>
         </form>
-        <div className="search-hint">多个词按 OR 查询，例如“老人家 老人 大龄人口”会返回包含任意一个词的记录。</div>
+        <div className="search-hint">
+          支持中英文空格分词；当前按{keywordMode === "or" ? "任意词匹配（OR）" : "全部词匹配（AND）"}。
+        </div>
         <FilterBuilder
           template={template}
           filters={filters}
@@ -553,12 +644,28 @@ function TemplateWorkspace({
           <div>
             <strong>{formatNumber(result.total)}</strong>
             <span> 条匹配记录</span>
-            {keyword && <span className="query-tag">关键词：{keyword}</span>}
+            {keyword && <span className="query-tag">关键词：{keyword} · {keywordMode.toUpperCase()}</span>}
             {filters.length > 0 && <span className="query-tag">{filters.length} 个字段条件</span>}
           </div>
-          <button className="icon-button" title="刷新" onClick={() => setRefreshKey((value) => value + 1)}>
-            <RefreshCw size={17} className={loading ? "spin" : ""} />
-          </button>
+          <div className="result-actions">
+            {exportResult && (
+              <span className="export-status" title={exportResult.filePath}>
+                <Check size={14} /> 已导出 {formatNumber(exportResult.exportedCount)} 条
+              </span>
+            )}
+            <button
+              className="button ghost small export-button"
+              onClick={exportData}
+              disabled={loading || exporting || result.total === 0}
+              title={result.total === 0 ? "当前没有可导出的匹配记录" : `导出全部 ${formatNumber(result.total)} 条匹配记录`}
+            >
+              {exporting ? <LoaderCircle className="spin" size={16} /> : <Download size={16} />}
+              {exporting ? "正在导出" : "导出匹配记录"}
+            </button>
+            <button className="icon-button" title="刷新" onClick={() => setRefreshKey((value) => value + 1)}>
+              <RefreshCw size={17} className={loading ? "spin" : ""} />
+            </button>
+          </div>
         </div>
         <DataTable
           template={template}
@@ -691,6 +798,13 @@ function RecordDrawer({
   onClose: () => void;
 }) {
   const [tab, setTab] = useState<"data" | "sources" | "versions">("data");
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
   return (
     <div className="drawer-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <aside className="drawer">

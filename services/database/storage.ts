@@ -113,6 +113,28 @@ export function getTemplate(storageRoot: string, templateId: string): TemplateSu
   }
 }
 
+export function renameTemplate(
+  storageRoot: string,
+  templateId: string,
+  name: string
+): TemplateSummary {
+  assertTemplateId(templateId);
+  const normalizedName = name.trim();
+  if (!normalizedName || normalizedName.length > 100) {
+    throw new Error("模板名称长度应为 1–100 个字符。");
+  }
+  const catalog = openCatalog(storageRoot);
+  try {
+    const result = catalog.prepare(`
+      UPDATE templates SET name = ?, updated_at = ? WHERE id = ?
+    `).run(normalizedName, new Date().toISOString(), templateId);
+    if (!result.changes) throw new Error("模板不存在或已被删除。");
+  } finally {
+    catalog.close();
+  }
+  return getTemplate(storageRoot, templateId);
+}
+
 export function createTemplate(storageRoot: string, input: CreateTemplateInput): TemplateSummary {
   const id = randomUUID();
   const now = new Date().toISOString();
@@ -392,6 +414,7 @@ function buildQueryParts(columns: TemplateColumn[], request: QueryRequest): { jo
   const joins = "";
   const keywords = [...new Set((request.keyword ?? "").trim().split(/\s+/).filter(Boolean))].slice(0, 20);
   if (keywords.length) {
+    const keywordOperator = request.keywordMode === "and" ? " AND " : " OR ";
     const keywordClauses: string[] = [];
     for (const keyword of keywords) {
       if ([...keyword].length >= 3) {
@@ -402,7 +425,7 @@ function buildQueryParts(columns: TemplateColumn[], request: QueryRequest): { jo
         params.push(`%${escapeLike(keyword)}%`);
       }
     }
-    clauses.push(`(${keywordClauses.join(" OR ")})`);
+    clauses.push(`(${keywordClauses.join(keywordOperator)})`);
   }
   if (request.mergedOnly) clauses.push("r.is_merged = 1");
   if (request.conflictOnly) clauses.push("r.has_conflict = 1");

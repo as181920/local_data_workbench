@@ -11,9 +11,11 @@ import {
   listImportHistory,
   listTemplates,
   queryRecords,
+  renameTemplate,
   removeTemplate,
   templateDbPath
 } from "../dist-electron/services/database/storage.js";
+import { exportQueryToWorkbook } from "../dist-electron/services/excel/export.js";
 import { previewWorkbook } from "../dist-electron/services/excel/workbook.js";
 import { importWorkbooks } from "../dist-electron/services/import/importer.js";
 
@@ -44,6 +46,9 @@ test("isolated template workflow imports, merges, searches with keyword OR, filt
       preview,
       dedupeColumnIndexes: [0]
     });
+    const renamed = renameTemplate(root, template.id, "工单归档");
+    assert.equal(renamed.name, "工单归档");
+    assert.equal(listTemplates(root)[0].name, "工单归档");
 
     const progress = [];
     const completed = await importWorkbooks({
@@ -71,10 +76,27 @@ test("isolated template workflow imports, merges, searches with keyword OR, filt
 
     const keywordOr = queryRecords(root, {
       templateId: template.id,
-      keyword: "老人家 大龄人口",
+      keyword: "老人家　大龄人口",
+      keywordMode: "or",
       pageSize: 50
     });
     assert.equal(keywordOr.total, 2);
+
+    const keywordAnd = queryRecords(root, {
+      templateId: template.id,
+      keyword: "老人家　帮助",
+      keywordMode: "and",
+      pageSize: 50
+    });
+    assert.equal(keywordAnd.total, 1);
+
+    const keywordAndNoMatch = queryRecords(root, {
+      templateId: template.id,
+      keyword: "老人家 大龄人口",
+      keywordMode: "and",
+      pageSize: 50
+    });
+    assert.equal(keywordAndNoMatch.total, 0);
     const shortKeyword = queryRecords(root, {
       templateId: template.id,
       keyword: "老人",
@@ -87,6 +109,26 @@ test("isolated template workflow imports, merges, searches with keyword OR, filt
       pageSize: 50
     });
     assert.equal(filtered.total, 1);
+
+    const exportedFile = join(root, "filtered-export.xlsx");
+    const exportedCount = await exportQueryToWorkbook(root, template, {
+      templateId: template.id,
+      filters: [{ columnIndex: 2, operator: "equals", value: "其他" }],
+      pageSize: 1
+    }, exportedFile);
+    assert.equal(exportedCount, 1);
+    assert.equal(existsSync(exportedFile), true);
+    const exportedWorkbook = XLSX.readFile(exportedFile);
+    const exportedRows = XLSX.utils.sheet_to_json(
+      exportedWorkbook.Sheets[exportedWorkbook.SheetNames[0]],
+      { header: 1, raw: false }
+    );
+    assert.deepEqual(exportedRows[0], [
+      "主键id", "事件内容", "类别", "是否合并", "出现次数", "来源文件数", "是否冲突", "版本数"
+    ]);
+    assert.deepEqual(exportedRows[1], [
+      "1000000000000000002", "普通记录", "其他", "否", "1", "1", "否", "1"
+    ]);
 
     const detail = getRecordDetail(root, template.id, merged.id);
     assert.equal(detail.versions.length, 2);

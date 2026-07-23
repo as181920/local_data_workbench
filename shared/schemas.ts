@@ -2,6 +2,11 @@ import { z } from "zod";
 
 export const templateIdSchema = z.string().uuid();
 
+export const renameTemplateSchema = z.object({
+  templateId: templateIdSchema,
+  name: z.string().trim().min(1).max(100)
+});
+
 export const createTemplateSchema = z.object({
   name: z.string().trim().min(1).max(100),
   description: z.string().max(500).optional(),
@@ -42,6 +47,7 @@ const filterSchema = z.object({
 export const queryRequestSchema = z.object({
   templateId: templateIdSchema,
   keyword: z.string().max(500).optional(),
+  keywordMode: z.enum(["or", "and"]).optional(),
   filters: z.array(filterSchema).max(20).optional(),
   mergedOnly: z.boolean().optional(),
   conflictOnly: z.boolean().optional(),

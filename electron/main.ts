@@ -10,6 +10,7 @@ import {
   listImportHistory,
   listTemplates,
   queryRecords,
+  renameTemplate,
   removeTemplate
 } from "../services/database/storage.js";
 import { exportQueryToWorkbook } from "../services/excel/export.js";
@@ -23,6 +24,7 @@ import {
   createTemplateSchema,
   importRequestSchema,
   queryRequestSchema,
+  renameTemplateSchema,
   templateIdSchema
 } from "../shared/schemas.js";
 import type { ImportProgress } from "../shared/types.js";
@@ -141,6 +143,10 @@ function registerIpc(): void {
     const input = createTemplateSchema.parse(payload);
     return createTemplate(storageRoot, input);
   });
+  handle("templates:rename", (_event, payload: unknown) => {
+    const input = renameTemplateSchema.parse(payload);
+    return renameTemplate(storageRoot, input.templateId, input.name);
+  });
   handle("templates:remove", (_event, payload: unknown) => {
     const templateId = templateIdSchema.parse((payload as any)?.templateId);
     if ([...importJobs.keys()].some((key) => key.startsWith(`${templateId}:`))) {
@@ -234,8 +240,8 @@ function registerIpc(): void {
       filters: [{ name: "Excel 工作簿", extensions: ["xlsx"] }]
     });
     if (result.canceled || !result.filePath) return { cancelled: true };
-    await exportQueryToWorkbook(storageRoot, template, request, result.filePath);
-    return { filePath: result.filePath };
+    const exportedCount = await exportQueryToWorkbook(storageRoot, template, request, result.filePath);
+    return { filePath: result.filePath, exportedCount };
   });
 }
 
