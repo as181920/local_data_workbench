@@ -73,13 +73,13 @@ npm run dist:win
 # Linux x64 AppImage
 npm run dist:linux
 
-# Linux ARM64 AppImage（必须在 ARM64 Linux 环境执行）
+# 麒麟 Linux aarch64 AppImage（Node/Electron 中架构名称为 arm64，必须在 ARM64 Linux 环境执行）
 npm run dist:linux:arm64
 ```
 
 产物位于 `release/`。麒麟 Linux 应根据真实 CPU 架构分别使用 x64 或 arm64 包，并在目标系统做启动、导入、查询和导出验收。
 
-桌面安装包必须在与目标一致的平台和 CPU 架构上原生构建。脚本会主动拦截跨平台或跨架构打包，避免将错误平台的 `better-sqlite3` 原生模块装入成品。仓库工作流会分别在 Windows x64 和 Linux x64 环境中执行质量检查、打包及包结构验证。
+桌面安装包必须在与目标一致的平台和 CPU 架构上原生构建。脚本会主动拦截跨平台或跨架构打包，避免将错误平台的 `better-sqlite3` 原生模块装入成品。仓库工作流会分别在 Windows x64、Linux x64 和原生 Linux ARM64 环境中执行质量检查、打包及包结构验证；其中 ARM64 产物面向麒麟 Linux aarch64，使用 Ubuntu 22.04 ARM Runner 构建以降低系统运行库基线。
 
 ## 数据位置
 

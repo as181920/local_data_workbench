@@ -35,6 +35,11 @@ jobs:
             verify: release/linux-unpacked
             artifact: linux-x64
             path: release/*.AppImage
+          - os: ubuntu-22.04-arm
+            command: npm run dist:linux:arm64
+            verify: release/linux-arm64-unpacked
+            artifact: kylin-linux-aarch64
+            path: release/*-linux-arm64.AppImage
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
