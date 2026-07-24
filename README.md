@@ -119,6 +119,14 @@ $env:LOCAL_DATA_WORKBENCH_DEBUG = "1"
 
 日志写入数据目录下的 `logs/debug.log`，达到 10 MB 后轮换为 `debug.previous.log`。主进程和独立导入进程会记录模板、文件路径、任务阶段、耗时、行数统计及完整错误栈，但不会逐行写入 Excel 内容。关闭应用并取消该环境变量即可恢复默认无详细日志模式。
 
+麒麟/UKUI 默认使用 X11/XWayland，以兼容旧版 GNOME GSettings schema。需要显式测试 Wayland
+或恢复 Electron 自动选择时，可分别使用：
+
+```bash
+LOCAL_DATA_WORKBENCH_OZONE_PLATFORM=wayland ./local-data-workbench-0.1.0-linux-arm64.AppImage
+LOCAL_DATA_WORKBENCH_OZONE_PLATFORM=auto ./local-data-workbench-0.1.0-linux-arm64.AppImage
+```
+
 删除模板时会关闭连接并删除对应 `.sqlite`、`-wal`、`-shm` 文件，其他模板不受影响。
 
 ## 当前边界

@@ -20,6 +20,7 @@ import {
   debugError,
   debugLog
 } from "../services/core/debug.js";
+import { resolveLinuxOzonePlatform } from "../services/core/linuxDisplay.js";
 import {
   createTemplateSchema,
   importRequestSchema,
@@ -35,6 +36,9 @@ const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 const importJobs = new Map<string, Electron.UtilityProcess>();
 let mainWindow: BrowserWindow | null = null;
 let storageRoot = "";
+
+const ozonePlatform = resolveLinuxOzonePlatform();
+if (ozonePlatform) app.commandLine.appendSwitch("ozone-platform", ozonePlatform);
 
 app.setPath("userData", path.join(app.getPath("appData"), APP_DATA_DIRECTORY));
 
@@ -87,7 +91,8 @@ app.whenReady().then(() => {
     version: app.getVersion(),
     packaged: app.isPackaged,
     storageRoot,
-    logFile
+    logFile,
+    ozonePlatform: ozonePlatform ?? "auto"
   });
   ensureStorage(storageRoot);
   registerIpc();
